@@ -1,0 +1,326 @@
+version: '3.6'
+
+services:
+  rbcore-0:
+    image: gcr.io/redbelly/rbcore:dev
+    container_name: redbelly-rbcore-0
+    expose: 
+      - 1888
+      - 1999
+    volumes:
+      - rbcore-0-data:/opt/storage
+    command: |
+      bash -c "
+        cd /opt/rbcore
+        cat <<EOT >> dbft.yaml
+      id: 0
+      size: 4
+      tolerance: 1
+      dbftPort: 1888
+      grpcPort: 1999
+      peers:
+      - rbcore-0:1888
+      - rbcore-1:1888
+      - rbcore-2:1888
+      - rbcore-3:1888
+      storage: ./storage
+      EOT
+
+      cat<<EOT >> observer.yaml
+      ip: rbcore-0
+      port: 1111
+      serverAddr: rbcore-0:1999
+      EOT
+
+      ./rbcore run --bootstrap -d .        
+      "
+    stop_signal: SIGTERM
+  rbcore-1:
+    image: gcr.io/redbelly/rbcore:dev
+    container_name: redbelly-rbcore-1
+    expose: 
+      - 1888
+      - 1999
+    depends_on:
+      - "rbcore-0"
+    volumes:
+      - rbcore-1-data:/opt/storage
+    command: |
+      bash -c "
+        cd /opt/rbcore
+      cat <<EOT >> dbft.yaml
+      id: 1
+      size: 4
+      tolerance: 1
+      dbftPort: 1888
+      grpcPort: 1999
+      peers:
+      - rbcore-0:1888
+      - rbcore-1:1888
+      - rbcore-2:1888
+      - rbcore-3:1888
+      storage: ./storage
+      EOT
+
+      cat<<EOT >> observer.yaml
+      ip: rbcore-1
+      port: 1111
+      serverAddr: rbcore-1:1999
+      EOT
+
+      ./rbcore run --bootstrap -d . 
+      "
+    stop_signal: SIGTERM
+  rbcore-2:
+    image: gcr.io/redbelly/rbcore:dev
+    container_name: redbelly-rbcore-2
+    expose: 
+      - 1888
+      - 1999
+    depends_on:
+      - "rbcore-1"
+    volumes:
+      - rbcore-2-data:/opt/storage
+    command: |
+      bash -c "
+        cd /opt/rbcore
+      cat <<EOT >> dbft.yaml
+      id: 2
+      size: 4
+      tolerance: 1
+      dbftPort: 1888
+      grpcPort: 1999
+      peers:
+      - rbcore-0:1888
+      - rbcore-1:1888
+      - rbcore-2:1888
+      - rbcore-3:1888
+      storage: ./storage
+      EOT
+
+      cat<<EOT >> observer.yaml
+      ip: rbcore-2
+      port: 1111
+      serverAddr: rbcore-2:1999
+      EOT
+
+      ./rbcore run --bootstrap -d . 
+      "
+    stop_signal: SIGTERM
+  rbcore-3:
+    image: gcr.io/redbelly/rbcore:dev
+    container_name: redbelly-rbcore-3
+    expose: 
+      - 1888
+      - 1999
+    depends_on:
+      - "rbcore-2"
+    volumes:
+      - rbcore-3-data:/opt/storage
+    command: |
+      bash -c "
+        cd /opt/rbcore
+      cat <<EOT >> dbft.yaml
+      id: 3
+      size: 4
+      tolerance: 1
+      dbftPort: 1888
+      grpcPort: 1999
+      peers:
+      - rbcore-0:1888
+      - rbcore-1:1888
+      - rbcore-2:1888
+      - rbcore-3:1888
+      storage: ./storage
+      EOT
+
+      cat<<EOT >> observer.yaml
+      ip: rbcore-3
+      port: 1111
+      serverAddr: rbcore-3:1999
+      EOT
+
+      ./rbcore run --bootstrap -d . 
+      "
+    stop_signal: SIGTERM
+  ether-rbbc-0:
+    image: gcr.io/redbelly/ether-rbbc:dev
+    container_name: redbelly-rbbc-0
+    depends_on:
+      - "rbcore-0"
+    ports:
+      - 8546:8546
+      - 8545:8545
+      - 26661:26661
+      - 30303:30303
+    expose: 
+      - 1888
+      - 1999
+    volumes:
+      - ether-rbbc-0-data:/opt/rbbc
+    command: |
+      bash -c "
+        cd /opt/rbbc      
+
+      cat<<EOT >> observer.yaml
+      ip: ether-rbbc-0
+      port: 1111
+      serverAddr: rbcore-0:1999
+      EOT
+
+      if [ ! -d lightchain ]; then
+        echo lightchain doesnt exist. Initialising
+        mkdir lightchain
+        mkdir dbft
+        cp observer.yaml ./dbft
+
+        ./rbbc init --datadir=./lightchain --standalone
+        rm -rf /opt/rbbc/lightchain/database/chaindata
+        rm -rf /opt/rbbc/lightchain/database/nodes
+        cp /opt/rbbc/genesis.json /opt/rbbc/lightchain/database
+      else
+        echo lightchain already exist. continuing with existing setup
+      fi
+      ./rbbc run --bootstrap --datadir=./lightchain --dbftDir=./dbft --rpc --rpcaddr=0.0.0.0 --rpccorsdomain=* --rpcvhosts=* --prometheus --rpcport=8545 --rpcapi eth,net,web3,personal,admin --ws --wsaddr=0.0.0.0 --wsport=8546 --wsorigins="*" --wsapi eth,net,web3,personal,admin --threshold=200 --timeout=5000 —-allow-insecure-unlock --lvl info
+      "
+    stop_signal: SIGTERM
+  ether-rbbc-1:
+    image: gcr.io/redbelly/ether-rbbc:dev
+    container_name: redbelly-rbbc-1
+    depends_on:
+      - "rbcore-1"
+    ports:
+      - 8548:8546
+      - 8547:8545
+      - 26662:26661
+      - 30304:30303
+    expose: 
+      - 1888
+      - 1999
+    volumes:
+      - ether-rbbc-1-data:/opt/rbbc
+    command: |
+      bash -c "
+        cd /opt/rbbc      
+
+      cat<<EOT >> observer.yaml
+      ip: ether-rbbc-1
+      port: 1111
+      serverAddr: rbcore-1:1999
+      EOT
+
+      if [ ! -d lightchain ]; then
+        echo lightchain doesnt exist. Initialising
+        mkdir lightchain
+        mkdir dbft
+        cp observer.yaml ./dbft
+
+        ./rbbc init --datadir=./lightchain --standalone
+        rm -rf /opt/rbbc/lightchain/database/chaindata
+        rm -rf /opt/rbbc/lightchain/database/nodes
+        cp /opt/rbbc/genesis.json /opt/rbbc/lightchain/database
+      else
+        echo lightchain already exist. continuing with existing setup
+      fi
+      ./rbbc run --bootstrap --datadir=./lightchain --dbftDir=./dbft --rpc --rpcaddr=0.0.0.0 --rpccorsdomain=* --rpcvhosts=* --prometheus --rpcport=8545 --rpcapi eth,net,web3,personal,admin --ws --wsaddr=0.0.0.0 --wsport=8546 --wsorigins="*" --wsapi eth,net,web3,personal,admin --threshold=200 --timeout=5000 —-allow-insecure-unlock --lvl info
+      "
+    stop_signal: SIGTERM
+  ether-rbbc-2:
+    image: gcr.io/redbelly/ether-rbbc:dev
+    container_name: redbelly-rbbc-2
+    depends_on:
+      - "rbcore-2"
+    ports:
+      - 8550:8546
+      - 8549:8545
+      - 26663:26661
+      - 30305:30303
+    expose: 
+      - 1888
+      - 1999
+    volumes:
+      - ether-rbbc-2-data:/opt/rbbc
+    command: |
+      bash -c "
+        cd /opt/rbbc      
+
+      cat<<EOT >> observer.yaml
+      ip: ether-rbbc-2
+      port: 1111
+      serverAddr: rbcore-2:1999
+      EOT
+
+      if [ ! -d lightchain ]; then
+        echo lightchain doesnt exist. Initialising
+        mkdir lightchain
+        mkdir dbft
+        cp observer.yaml ./dbft
+
+        ./rbbc init --datadir=./lightchain --standalone
+        rm -rf /opt/rbbc/lightchain/database/chaindata
+        rm -rf /opt/rbbc/lightchain/database/nodes
+        cp /opt/rbbc/genesis.json /opt/rbbc/lightchain/database
+      else
+        echo lightchain already exist. continuing with existing setup
+      fi
+      ./rbbc run --bootstrap --datadir=./lightchain --dbftDir=./dbft --rpc --rpcaddr=0.0.0.0 --rpccorsdomain=* --rpcvhosts=* --prometheus --rpcport=8545 --rpcapi eth,net,web3,personal,admin --ws --wsaddr=0.0.0.0 --wsport=8546 --wsorigins="*" --wsapi eth,net,web3,personal,admin --threshold=200 --timeout=5000 —-allow-insecure-unlock --lvl info
+      "
+    stop_signal: SIGTERM
+  ether-rbbc-3:
+    image: gcr.io/redbelly/ether-rbbc:dev
+    container_name: redbelly-rbbc-3
+    depends_on:
+      - "rbcore-3"
+    ports:
+      - 8552:8546
+      - 8551:8545
+      - 26664:26661
+      - 30306:30303
+    expose: 
+      - 1888
+      - 1999
+    volumes:
+      - ether-rbbc-3-data:/opt/rbbc
+    command: |
+      bash -c "
+        cd /opt/rbbc      
+
+      cat<<EOT >> observer.yaml
+      ip: ether-rbbc-3
+      port: 1111
+      serverAddr: rbcore-3:1999
+      EOT
+
+      if [ ! -d lightchain ]; then
+        echo lightchain doesnt exist. Initialising
+        mkdir lightchain
+        mkdir dbft
+        cp observer.yaml ./dbft
+
+        ./rbbc init --datadir=./lightchain --standalone
+        rm -rf /opt/rbbc/lightchain/database/chaindata
+        rm -rf /opt/rbbc/lightchain/database/nodes
+        cp /opt/rbbc/genesis.json /opt/rbbc/lightchain/database
+      else
+        echo lightchain already exist. continuing with existing setup
+      fi
+      ./rbbc run --bootstrap --datadir=./lightchain --dbftDir=./dbft --rpc --rpcaddr=0.0.0.0 --rpccorsdomain=* --rpcvhosts=* --prometheus --rpcport=8545 --rpcapi eth,net,web3,personal,admin --ws --wsaddr=0.0.0.0 --wsport=8546 --wsorigins="*" --wsapi eth,net,web3,personal,admin --threshold=200 --timeout=5000 —-allow-insecure-unlock --lvl info
+      "
+    stop_signal: SIGTERM
+  explorer:
+    image: alethio/ethereum-lite-explorer
+    container_name: redbelly-explorer
+    environment:
+      - APP_NODE_URL=http://localhost:8545
+    ports:
+      - 8080:80
+
+volumes:
+  rbcore-0-data:
+  rbcore-1-data:
+  rbcore-2-data:
+  rbcore-3-data:
+  ether-rbbc-0-data:
+  ether-rbbc-1-data:
+  ether-rbbc-2-data:
+  ether-rbbc-3-data:
